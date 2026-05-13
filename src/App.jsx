@@ -31,18 +31,6 @@ function App() {
     soldBy: "",
   });
 
-  useEffect(() => {
-    localStorage.setItem("products", JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem("sales", JSON.stringify(sales));
-  }, [sales]);
-
-  useEffect(() => {
-    loadDataFromSupabase();
-  }, []);
-
   const formatProductFromSupabase = (product) => ({
     name: product.name,
     category: product.category || "General",
@@ -83,6 +71,48 @@ function App() {
       setSales(salesData.map(formatSaleFromSupabase));
     }
   };
+
+  useEffect(() => {
+    localStorage.setItem("products", JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem("sales", JSON.stringify(sales));
+  }, [sales]);
+
+  useEffect(() => {
+    loadDataFromSupabase();
+
+    const channel = supabase
+      .channel("yusuf-stock-live-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "products",
+        },
+        () => {
+          loadDataFromSupabase();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sales",
+        },
+        () => {
+          loadDataFromSupabase();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const addProduct = async () => {
     if (
@@ -125,8 +155,6 @@ function App() {
       alert("Product failed to save online: " + error.message);
       return;
     }
-
-    setProducts([...products, productToAdd]);
 
     setNewProduct({
       name: "",
@@ -177,33 +205,17 @@ function App() {
     const saleDate = new Date().toLocaleDateString();
     const saleTime = new Date().toLocaleTimeString();
 
-    const saleToSave = {
+    const { error: saleError } = await supabase.from("sales").insert({
       product: sale.product,
       quantity,
-      sellingPrice,
-      paymentMethod: sale.paymentMethod,
-      soldBy: sale.soldBy,
+      selling_price: sellingPrice,
+      payment_method: sale.paymentMethod,
+      sold_by: sale.soldBy,
       total,
       profit,
-      date: saleDate,
-      time: saleTime,
-    };
-
-    const { data: insertedSale, error: saleError } = await supabase
-      .from("sales")
-      .insert({
-        product: saleToSave.product,
-        quantity: saleToSave.quantity,
-        selling_price: saleToSave.sellingPrice,
-        payment_method: saleToSave.paymentMethod,
-        sold_by: saleToSave.soldBy,
-        total: saleToSave.total,
-        profit: saleToSave.profit,
-        sale_date: saleToSave.date,
-        sale_time: saleToSave.time,
-      })
-      .select()
-      .single();
+      sale_date: saleDate,
+      sale_time: saleTime,
+    });
 
     if (saleError) {
       alert("Sale failed to save: " + saleError.message);
@@ -219,20 +231,6 @@ function App() {
       alert("Sale saved, but stock update failed: " + stockError.message);
       return;
     }
-
-    setSales([
-      ...sales,
-      {
-        id: insertedSale.id,
-        ...saleToSave,
-      },
-    ]);
-
-    setProducts(
-      products.map((p) =>
-        p.name === sale.product ? { ...p, stock: newStock } : p
-      )
-    );
 
     setSale({
       product: "",
@@ -298,7 +296,7 @@ function App() {
 
     const reader = new FileReader();
 
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const text = e.target.result;
       const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
 
@@ -353,7 +351,7 @@ function App() {
         return Array.from(productsMap.values());
       });
 
-      alert(`${importedProducts.length} products imported successfully`);
+      alert(`${importedProducts.length} products imported locally`);
       event.target.value = "";
     };
 
@@ -537,7 +535,7 @@ function App() {
             .slice(-4)
             .reverse()
             .map((s, index) => (
-              <div className="sale-row" key={index}>
+              <div className="sale-row" key={s.id || index}>
                 <div className="item-icon">📦</div>
 
                 <div>
@@ -855,7 +853,7 @@ function App() {
       <br />
 
       <div className="more-card">📦 Real-time Stock — Supabase active</div>
-      <div className="more-card">👥 Multi-worker Access — almost ready</div>
+      <div className="more-card">👥 Multi-worker Access — active</div>
       <div className="more-card">📊 Reports & Analytics — active</div>
       <div className="more-card">🔐 Secure Login — later</div>
     </div>
