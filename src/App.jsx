@@ -31,6 +31,12 @@ function App() {
     soldBy: "",
   });
 
+  const [stockUpdate, setStockUpdate] = useState({
+    product: "",
+    mode: "add",
+    quantity: "",
+  });
+
   const formatProductFromSupabase = (product) => ({
     name: product.name,
     category: product.category || "General",
@@ -87,25 +93,13 @@ function App() {
       .channel("yusuf-stock-live-updates")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "products",
-        },
-        () => {
-          loadDataFromSupabase();
-        }
+        { event: "*", schema: "public", table: "products" },
+        () => loadDataFromSupabase()
       )
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "sales",
-        },
-        () => {
-          loadDataFromSupabase();
-        }
+        { event: "*", schema: "public", table: "sales" },
+        () => loadDataFromSupabase()
       )
       .subscribe();
 
@@ -132,21 +126,13 @@ function App() {
       return alert("This product already exists");
     }
 
-    const productToAdd = {
-      name: newProduct.name,
-      category: newProduct.category || "General",
-      stock: Number(newProduct.stock),
-      buyingPrice: Number(newProduct.buyingPrice),
-      sellingPrice: Number(newProduct.sellingPrice),
-    };
-
     const { error } = await supabase.from("products").upsert(
       {
-        name: productToAdd.name,
-        category: productToAdd.category,
-        stock: productToAdd.stock,
-        buying_price: productToAdd.buyingPrice,
-        selling_price: productToAdd.sellingPrice,
+        name: newProduct.name,
+        category: newProduct.category || "General",
+        stock: Number(newProduct.stock),
+        buying_price: Number(newProduct.buyingPrice),
+        selling_price: Number(newProduct.sellingPrice),
       },
       { onConflict: "name" }
     );
@@ -165,6 +151,47 @@ function App() {
     });
 
     alert("Product saved ✅");
+  };
+
+  const updateStock = async () => {
+    const product = products.find((p) => p.name === stockUpdate.product);
+
+    if (!product) {
+      return alert("Choose a product first");
+    }
+
+    const quantity = Number(stockUpdate.quantity);
+
+    if (stockUpdate.quantity === "" || quantity < 0) {
+      return alert("Enter a valid stock number");
+    }
+
+    const newStock =
+      stockUpdate.mode === "add" ? Number(product.stock) + quantity : quantity;
+
+    const { error } = await supabase
+      .from("products")
+      .update({ stock: newStock })
+      .eq("name", product.name);
+
+    if (error) {
+      alert("Stock update failed: " + error.message);
+      return;
+    }
+
+    setProducts(
+      products.map((p) =>
+        p.name === product.name ? { ...p, stock: newStock } : p
+      )
+    );
+
+    setStockUpdate({
+      product: "",
+      mode: "add",
+      quantity: "",
+    });
+
+    alert(`Stock updated for ${product.name} ✅`);
   };
 
   const deleteProduct = async (productName) => {
@@ -556,6 +583,57 @@ function App() {
   const Products = () => (
     <div className="panel">
       <h2>Products</h2>
+
+      <div className="form-box">
+        <h3>Update Stock</h3>
+
+        <select
+          value={stockUpdate.product}
+          onChange={(e) =>
+            setStockUpdate({ ...stockUpdate, product: e.target.value })
+          }
+        >
+          <option value="">Select product</option>
+          {products.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name} - Current Stock: {p.stock}
+            </option>
+          ))}
+        </select>
+
+        <div className="payment-buttons">
+          <button
+            className={stockUpdate.mode === "add" ? "pay active mpesa" : "pay"}
+            onClick={() => setStockUpdate({ ...stockUpdate, mode: "add" })}
+          >
+            Add Stock
+          </button>
+
+          <button
+            className={stockUpdate.mode === "set" ? "pay active" : "pay"}
+            onClick={() => setStockUpdate({ ...stockUpdate, mode: "set" })}
+          >
+            Set Exact
+          </button>
+        </div>
+
+        <input
+          type="number"
+          placeholder={
+            stockUpdate.mode === "add"
+              ? "Quantity to add"
+              : "Set stock to this number"
+          }
+          value={stockUpdate.quantity}
+          onChange={(e) =>
+            setStockUpdate({ ...stockUpdate, quantity: e.target.value })
+          }
+        />
+
+        <button className="primary-btn" onClick={updateStock}>
+          Update Stock
+        </button>
+      </div>
 
       <div className="form-box">
         <h3>Import Products from CSV</h3>
