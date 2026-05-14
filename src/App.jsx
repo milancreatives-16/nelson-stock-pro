@@ -37,6 +37,12 @@ function App() {
     quantity: "",
   });
 
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem("isAdmin") === "true";
+  });
+
+  const [pinInput, setPinInput] = useState("");
+
   const formatProductFromSupabase = (product) => ({
     name: product.name,
     category: product.category || "General",
@@ -107,6 +113,23 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const unlockAdmin = () => {
+    if (pinInput === "0987") {
+      setIsAdmin(true);
+      localStorage.setItem("isAdmin", "true");
+      setPinInput("");
+      alert("Admin mode unlocked ✅");
+    } else {
+      alert("Wrong PIN");
+    }
+  };
+
+  const lockAdmin = () => {
+    setIsAdmin(false);
+    localStorage.removeItem("isAdmin");
+    alert("Admin mode locked");
+  };
 
   const addProduct = async () => {
     if (
@@ -271,6 +294,10 @@ function App() {
   };
 
   const deleteSale = async (saleIndex) => {
+    if (!isAdmin) {
+      return alert("Admin only");
+    }
+
     const confirmDelete = confirm("Delete this sale?");
     if (!confirmDelete) return;
 
@@ -584,142 +611,159 @@ function App() {
     <div className="panel">
       <h2>Products</h2>
 
-      <div className="form-box">
-        <h3>Update Stock</h3>
+      {isAdmin && (
+        <div className="form-box">
+          <h3>Update Stock</h3>
 
-        <select
-          value={stockUpdate.product}
-          onChange={(e) =>
-            setStockUpdate({ ...stockUpdate, product: e.target.value })
-          }
-        >
-          <option value="">Select product</option>
-          {products.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name} - Current Stock: {p.stock}
-            </option>
-          ))}
-        </select>
-
-        <div className="payment-buttons">
-          <button
-            className={stockUpdate.mode === "add" ? "pay active mpesa" : "pay"}
-            onClick={() => setStockUpdate({ ...stockUpdate, mode: "add" })}
+          <select
+            value={stockUpdate.product}
+            onChange={(e) =>
+              setStockUpdate({ ...stockUpdate, product: e.target.value })
+            }
           >
-            Add Stock
-          </button>
+            <option value="">Select product</option>
+            {products.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name} - Current Stock: {p.stock}
+              </option>
+            ))}
+          </select>
 
-          <button
-            className={stockUpdate.mode === "set" ? "pay active" : "pay"}
-            onClick={() => setStockUpdate({ ...stockUpdate, mode: "set" })}
-          >
-            Set Exact
+          <div className="payment-buttons">
+            <button
+              className={
+                stockUpdate.mode === "add" ? "pay active mpesa" : "pay"
+              }
+              onClick={() => setStockUpdate({ ...stockUpdate, mode: "add" })}
+            >
+              Add Stock
+            </button>
+
+            <button
+              className={stockUpdate.mode === "set" ? "pay active" : "pay"}
+              onClick={() => setStockUpdate({ ...stockUpdate, mode: "set" })}
+            >
+              Set Exact
+            </button>
+          </div>
+
+          <input
+            type="number"
+            placeholder={
+              stockUpdate.mode === "add"
+                ? "Quantity to add"
+                : "Set stock to this number"
+            }
+            value={stockUpdate.quantity}
+            onChange={(e) =>
+              setStockUpdate({ ...stockUpdate, quantity: e.target.value })
+            }
+          />
+
+          <button className="primary-btn" onClick={updateStock}>
+            Update Stock
           </button>
         </div>
+      )}
 
-        <input
-          type="number"
-          placeholder={
-            stockUpdate.mode === "add"
-              ? "Quantity to add"
-              : "Set stock to this number"
-          }
-          value={stockUpdate.quantity}
-          onChange={(e) =>
-            setStockUpdate({ ...stockUpdate, quantity: e.target.value })
-          }
-        />
+      {isAdmin && (
+        <div className="form-box">
+          <h3>Import Products from CSV</h3>
 
-        <button className="primary-btn" onClick={updateStock}>
-          Update Stock
-        </button>
-      </div>
+          <p className="import-note">
+            Upload your CSV file with columns: name, category, stock,
+            buyingPrice, sellingPrice.
+          </p>
 
-      <div className="form-box">
-        <h3>Import Products from CSV</h3>
+          <input
+            className="file-input"
+            type="file"
+            accept=".csv"
+            onChange={importProductsFromCSV}
+          />
+        </div>
+      )}
 
+      {isAdmin && (
+        <div className="form-box">
+          <h3>Backup Data</h3>
+
+          <p className="import-note">
+            Download a backup copy of your current products and sales.
+          </p>
+
+          <button className="primary-btn" onClick={exportProductsCSV}>
+            Export Products CSV
+          </button>
+
+          <br />
+          <br />
+
+          <button className="secondary-btn" onClick={exportSalesCSV}>
+            Export Sales CSV
+          </button>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="form-box">
+          <h3>Add Product</h3>
+
+          <input
+            placeholder="Product name"
+            value={newProduct.name}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, name: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Category e.g Accessories"
+            value={newProduct.category}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, category: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            placeholder="Stock quantity"
+            value={newProduct.stock}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, stock: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            placeholder="Buying price"
+            value={newProduct.buyingPrice}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, buyingPrice: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            placeholder="Selling price"
+            value={newProduct.sellingPrice}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, sellingPrice: e.target.value })
+            }
+          />
+
+          <button className="primary-btn" onClick={addProduct}>
+            Add Product
+          </button>
+        </div>
+      )}
+
+      {!isAdmin && (
         <p className="import-note">
-          Upload your CSV file with columns: name, category, stock, buyingPrice,
-          sellingPrice.
+          Worker mode: you can view products and make sales. Admin controls are
+          locked.
         </p>
-
-        <input
-          className="file-input"
-          type="file"
-          accept=".csv"
-          onChange={importProductsFromCSV}
-        />
-      </div>
-
-      <div className="form-box">
-        <h3>Backup Data</h3>
-
-        <p className="import-note">
-          Download a backup copy of your current products and sales.
-        </p>
-
-        <button className="primary-btn" onClick={exportProductsCSV}>
-          Export Products CSV
-        </button>
-
-        <br />
-        <br />
-
-        <button className="secondary-btn" onClick={exportSalesCSV}>
-          Export Sales CSV
-        </button>
-      </div>
-
-      <div className="form-box">
-        <h3>Add Product</h3>
-
-        <input
-          placeholder="Product name"
-          value={newProduct.name}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, name: e.target.value })
-          }
-        />
-
-        <input
-          placeholder="Category e.g Accessories"
-          value={newProduct.category}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, category: e.target.value })
-          }
-        />
-
-        <input
-          type="number"
-          placeholder="Stock quantity"
-          value={newProduct.stock}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, stock: e.target.value })
-          }
-        />
-
-        <input
-          type="number"
-          placeholder="Buying price"
-          value={newProduct.buyingPrice}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, buyingPrice: e.target.value })
-          }
-        />
-
-        <input
-          type="number"
-          placeholder="Selling price"
-          value={newProduct.sellingPrice}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, sellingPrice: e.target.value })
-          }
-        />
-
-        <button className="primary-btn" onClick={addProduct}>
-          Add Product
-        </button>
-      </div>
+      )}
 
       <div className="product-list">
         {products.map((p) => (
@@ -736,12 +780,14 @@ function App() {
               {p.stock}
             </div>
 
-            <button
-              className="small-delete"
-              onClick={() => deleteProduct(p.name)}
-            >
-              ✕
-            </button>
+            {isAdmin && (
+              <button
+                className="small-delete"
+                onClick={() => deleteProduct(p.name)}
+              >
+                ✕
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -832,9 +878,11 @@ function App() {
                   <div className="sale-actions">
                     <strong>KSh {s.total}</strong>
 
-                    <button onClick={() => deleteSale(realIndex)}>
-                      Delete
-                    </button>
+                    {isAdmin && (
+                      <button onClick={() => deleteSale(realIndex)}>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -895,45 +943,74 @@ function App() {
     <div className="panel">
       <h2>More</h2>
 
-      <button className="primary-btn" onClick={testSupabaseConnection}>
-        Test Supabase Connection
-      </button>
+      <div className="form-box">
+        <h3>{isAdmin ? "Admin Mode Active" : "Admin Login"}</h3>
 
-      <br />
-      <br />
+        {!isAdmin ? (
+          <>
+            <input
+              type="password"
+              placeholder="Enter admin PIN"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+            />
 
-      <button className="secondary-btn" onClick={syncProductsToSupabase}>
-        Sync Products to Supabase
-      </button>
+            <button className="primary-btn" onClick={unlockAdmin}>
+              Unlock Admin
+            </button>
+          </>
+        ) : (
+          <button className="secondary-btn" onClick={lockAdmin}>
+            Lock Admin
+          </button>
+        )}
+      </div>
 
-      <br />
-      <br />
+      {isAdmin && (
+        <>
+          <button className="primary-btn" onClick={testSupabaseConnection}>
+            Test Supabase Connection
+          </button>
 
-      <button className="secondary-btn" onClick={loadProductsFromSupabase}>
-        Load Products from Supabase
-      </button>
+          <br />
+          <br />
 
-      <br />
-      <br />
+          <button className="secondary-btn" onClick={syncProductsToSupabase}>
+            Sync Products to Supabase
+          </button>
 
-      <button className="secondary-btn" onClick={loadSalesFromSupabase}>
-        Load Sales from Supabase
-      </button>
+          <br />
+          <br />
 
-      <br />
-      <br />
+          <button className="secondary-btn" onClick={loadProductsFromSupabase}>
+            Load Products from Supabase
+          </button>
 
-      <button className="secondary-btn" onClick={loadDataFromSupabase}>
-        Refresh All Data
-      </button>
+          <br />
+          <br />
 
-      <br />
-      <br />
+          <button className="secondary-btn" onClick={loadSalesFromSupabase}>
+            Load Sales from Supabase
+          </button>
+
+          <br />
+          <br />
+
+          <button className="secondary-btn" onClick={loadDataFromSupabase}>
+            Refresh All Data
+          </button>
+
+          <br />
+          <br />
+        </>
+      )}
 
       <div className="more-card">📦 Real-time Stock — Supabase active</div>
-      <div className="more-card">👥 Multi-worker Access — active</div>
+      <div className="more-card">
+        👥 Multi-worker Access — {isAdmin ? "Admin" : "Worker"} mode
+      </div>
       <div className="more-card">📊 Reports & Analytics — active</div>
-      <div className="more-card">🔐 Secure Login — later</div>
+      <div className="more-card">🔐 Admin PIN — active</div>
     </div>
   );
 
