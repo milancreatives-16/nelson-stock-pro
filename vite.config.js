@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Nelson Stock Pro',
+        name: 'Nelson Stock',
         short_name: 'Nelson Stock',
         description: 'Stock and sales management app',
         theme_color: '#111827',
