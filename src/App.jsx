@@ -37,6 +37,8 @@ function App() {
     soldBy: "",
   });
 
+  const [productFilterCategory, setProductFilterCategory] = useState("");
+
   const [stockUpdate, setStockUpdate] = useState({
     product: "",
     mode: "add",
@@ -599,6 +601,12 @@ function App() {
       )
     : [];
 
+  const productsToShow = productFilterCategory
+    ? products.filter(
+        (product) => (product.category || "General") === productFilterCategory
+      )
+    : products;
+
   const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
   const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
 
@@ -689,6 +697,24 @@ function App() {
   const Products = () => (
     <div className="panel">
       <h2>Products</h2>
+
+      <div className="form-box">
+        <h3>Browse by Category</h3>
+
+        <select
+          value={productFilterCategory}
+          onChange={(e) => setProductFilterCategory(e.target.value)}
+        >
+          <option value="">All Categories</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+
+        <p className="import-note">Showing {productsToShow.length} products</p>
+      </div>
 
       {isAdmin && (
         <div className="form-box">
@@ -845,7 +871,7 @@ function App() {
       )}
 
       <div className="product-list">
-        {products.map((p) => (
+        {productsToShow.map((p) => (
           <div className="product-card" key={p.name}>
             <div className="product-image">📱</div>
 
