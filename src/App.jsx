@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import { supabase } from "./supabaseClient";
 
+const SHOP_NAME = "Nelson Stock Pro";
+const ADMIN_PIN = "0987";
+
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -21,6 +24,15 @@ function App() {
   });
 
   const [newProduct, setNewProduct] = useState({
+    name: "",
+    category: "",
+    stock: "",
+    buyingPrice: "",
+    sellingPrice: "",
+  });
+
+  const [editProduct, setEditProduct] = useState({
+    originalName: "",
     name: "",
     category: "",
     stock: "",
@@ -119,7 +131,7 @@ function App() {
     loadDataFromSupabase();
 
     const channel = supabase
-      .channel("yusuf-stock-live-updates")
+      .channel("nelson-stock-live-updates")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
@@ -143,7 +155,7 @@ function App() {
   }, []);
 
   const unlockAdmin = () => {
-    if (pinInput === "0987") {
+    if (pinInput === ADMIN_PIN) {
       setIsAdmin(true);
       localStorage.setItem("isAdmin", "true");
       setPinInput("");
@@ -221,8 +233,8 @@ function App() {
 
     const { error } = await supabase.from("products").upsert(
       {
-        name: newProduct.name,
-        category: newProduct.category || "General",
+        name: newProduct.name.trim(),
+        category: newProduct.category.trim() || "General",
         stock: Number(newProduct.stock),
         buying_price: Number(newProduct.buyingPrice),
         selling_price: Number(newProduct.sellingPrice),
@@ -244,6 +256,71 @@ function App() {
     });
 
     alert("Product saved ✅");
+  };
+
+  const startEditProduct = (product) => {
+    setEditProduct({
+      originalName: product.name,
+      name: product.name,
+      category: product.category || "General",
+      stock: String(product.stock),
+      buyingPrice: String(product.buyingPrice),
+      sellingPrice: String(product.sellingPrice),
+    });
+  };
+
+  const cancelEditProduct = () => {
+    setEditProduct({
+      originalName: "",
+      name: "",
+      category: "",
+      stock: "",
+      buyingPrice: "",
+      sellingPrice: "",
+    });
+  };
+
+  const saveEditedProduct = async () => {
+    if (
+      !editProduct.originalName ||
+      !editProduct.name ||
+      editProduct.stock === "" ||
+      editProduct.buyingPrice === "" ||
+      editProduct.sellingPrice === ""
+    ) {
+      return alert("Fill all edited product details");
+    }
+
+    const newName = editProduct.name.trim();
+
+    const duplicateName = products.some(
+      (p) =>
+        p.name.toLowerCase() === newName.toLowerCase() &&
+        p.name.toLowerCase() !== editProduct.originalName.toLowerCase()
+    );
+
+    if (duplicateName) {
+      return alert("Another product already has this name");
+    }
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name: newName,
+        category: editProduct.category.trim() || "General",
+        stock: Number(editProduct.stock),
+        buying_price: Number(editProduct.buyingPrice),
+        selling_price: Number(editProduct.sellingPrice),
+      })
+      .eq("name", editProduct.originalName);
+
+    if (error) {
+      alert("Product update failed: " + error.message);
+      return;
+    }
+
+    cancelEditProduct();
+    alert("Product updated ✅");
   };
 
   const updateStock = async () => {
@@ -312,7 +389,9 @@ function App() {
     const sellingPrice = Number(sale.sellingPrice);
 
     if (!sale.category || !quantity || !sellingPrice || !sale.soldBy) {
-      return alert("Fill category, product, quantity, selling price, and sold by");
+      return alert(
+        "Fill category, product, quantity, selling price, and sold by"
+      );
     }
 
     if (quantity > product.stock) {
@@ -518,11 +597,11 @@ function App() {
   };
 
   const exportProductsCSV = () => {
-    downloadCSV("yusuf_products_backup.csv", products);
+    downloadCSV("nelson_products_backup.csv", products);
   };
 
   const exportSalesCSV = () => {
-    downloadCSV("yusuf_sales_backup.csv", sales);
+    downloadCSV("nelson_sales_backup.csv", sales);
   };
 
   const testSupabaseConnection = async () => {
@@ -624,9 +703,9 @@ function App() {
     <>
       <div className="hero-card">
         <div>
-          <p className="muted">Total Profit</p>
+          <p className="muted">{SHOP_NAME}</p>
           <h1>KSh {totalProfit.toLocaleString()}</h1>
-          <span className="green-text">▲ Live business summary</span>
+          <span className="green-text">▲ Total Profit</span>
         </div>
 
         <div className="mini-chart">
@@ -771,6 +850,66 @@ function App() {
         </div>
       )}
 
+      {isAdmin && editProduct.originalName && (
+        <div className="form-box">
+          <h3>Edit Product</h3>
+
+          <input
+            placeholder="Product name"
+            value={editProduct.name}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, name: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Category"
+            value={editProduct.category}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, category: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            placeholder="Stock"
+            value={editProduct.stock}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, stock: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            placeholder="Buying price"
+            value={editProduct.buyingPrice}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, buyingPrice: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            placeholder="Selling price"
+            value={editProduct.sellingPrice}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, sellingPrice: e.target.value })
+            }
+          />
+
+          <button className="primary-btn" onClick={saveEditedProduct}>
+            Save Product Changes
+          </button>
+
+          <br />
+          <br />
+
+          <button className="secondary-btn" onClick={cancelEditProduct}>
+            Cancel Edit
+          </button>
+        </div>
+      )}
+
       {isAdmin && (
         <div className="form-box">
           <h3>Import Products from CSV</h3>
@@ -886,12 +1025,11 @@ function App() {
             </div>
 
             {isAdmin && (
-              <button
-                className="small-delete"
-                onClick={() => deleteProduct(p.name)}
-              >
-                ✕
-              </button>
+              <div className="sale-actions">
+                <button onClick={() => startEditProduct(p)}>Edit</button>
+
+                <button onClick={() => deleteProduct(p.name)}>Delete</button>
+              </div>
             )}
           </div>
         ))}
@@ -1192,7 +1330,7 @@ function App() {
         <button className="menu-btn">☰</button>
 
         <h2>
-          {activeTab === "dashboard" && "Dashboard"}
+          {activeTab === "dashboard" && SHOP_NAME}
           {activeTab === "products" && "Products"}
           {activeTab === "sales" && "New Sale"}
           {activeTab === "reports" && "Reports"}
