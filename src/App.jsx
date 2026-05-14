@@ -15,6 +15,11 @@ function App() {
     return savedSales ? JSON.parse(savedSales) : [];
   });
 
+  const [workers, setWorkers] = useState(() => {
+    const savedWorkers = localStorage.getItem("workers");
+    return savedWorkers ? JSON.parse(savedWorkers) : [];
+  });
+
   const [newProduct, setNewProduct] = useState({
     name: "",
     category: "",
@@ -36,6 +41,8 @@ function App() {
     mode: "add",
     quantity: "",
   });
+
+  const [newWorker, setNewWorker] = useState("");
 
   const [isAdmin, setIsAdmin] = useState(() => {
     return localStorage.getItem("isAdmin") === "true";
@@ -82,6 +89,15 @@ function App() {
     if (!salesError && salesData) {
       setSales(salesData.map(formatSaleFromSupabase));
     }
+
+    const { data: workersData, error: workersError } = await supabase
+      .from("workers")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (!workersError && workersData) {
+      setWorkers(workersData);
+    }
   };
 
   useEffect(() => {
@@ -91,6 +107,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem("sales", JSON.stringify(sales));
   }, [sales]);
+
+  useEffect(() => {
+    localStorage.setItem("workers", JSON.stringify(workers));
+  }, [workers]);
 
   useEffect(() => {
     loadDataFromSupabase();
@@ -105,6 +125,11 @@ function App() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales" },
+        () => loadDataFromSupabase()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "workers" },
         () => loadDataFromSupabase()
       )
       .subscribe();
@@ -129,6 +154,48 @@ function App() {
     setIsAdmin(false);
     localStorage.removeItem("isAdmin");
     alert("Admin mode locked");
+  };
+
+  const addWorker = async () => {
+    const workerName = newWorker.trim();
+
+    if (!workerName) {
+      return alert("Enter worker name");
+    }
+
+    const workerExists = workers.some(
+      (worker) => worker.name.toLowerCase() === workerName.toLowerCase()
+    );
+
+    if (workerExists) {
+      return alert("Worker already exists");
+    }
+
+    const { error } = await supabase.from("workers").insert({
+      name: workerName,
+    });
+
+    if (error) {
+      alert("Worker failed to save: " + error.message);
+      return;
+    }
+
+    setNewWorker("");
+    alert("Worker added ✅");
+  };
+
+  const deleteWorker = async (workerId, workerName) => {
+    const confirmDelete = confirm(`Delete worker ${workerName}?`);
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from("workers").delete().eq("id", workerId);
+
+    if (error) {
+      alert("Worker delete failed: " + error.message);
+      return;
+    }
+
+    setWorkers(workers.filter((worker) => worker.id !== workerId));
   };
 
   const addProduct = async () => {
@@ -242,7 +309,7 @@ function App() {
     const sellingPrice = Number(sale.sellingPrice);
 
     if (!quantity || !sellingPrice || !sale.soldBy) {
-      return alert("Fill quantity, selling price, and sold by");
+      return alert("Fill product, quantity, selling price, and sold by");
     }
 
     if (quantity > product.stock) {
@@ -824,11 +891,17 @@ function App() {
         onChange={(e) => setSale({ ...sale, sellingPrice: e.target.value })}
       />
 
-      <input
-        placeholder="Sold by"
+      <select
         value={sale.soldBy}
         onChange={(e) => setSale({ ...sale, soldBy: e.target.value })}
-      />
+      >
+        <option value="">Sold by</option>
+        {workers.map((worker) => (
+          <option key={worker.id} value={worker.name}>
+            {worker.name}
+          </option>
+        ))}
+      </select>
 
       <div className="payment-buttons">
         <button
@@ -965,6 +1038,46 @@ function App() {
           </button>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="form-box">
+          <h3>Worker Management</h3>
+
+          <input
+            placeholder="Worker name"
+            value={newWorker}
+            onChange={(e) => setNewWorker(e.target.value)}
+          />
+
+          <button className="primary-btn" onClick={addWorker}>
+            Add Worker
+          </button>
+
+          <br />
+          <br />
+
+          {workers.length === 0 ? (
+            <p className="empty">No workers added yet</p>
+          ) : (
+            workers.map((worker) => (
+              <div className="sale-row" key={worker.id}>
+                <div className="item-icon">👤</div>
+
+                <div>
+                  <h3>{worker.name}</h3>
+                  <p>Worker</p>
+                </div>
+
+                <div className="sale-actions">
+                  <button onClick={() => deleteWorker(worker.id, worker.name)}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {isAdmin && (
         <>
