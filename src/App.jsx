@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { supabase } from "./supabaseClient";
 
@@ -670,34 +670,52 @@ function App() {
     alert(`${data.length} sales loaded from Supabase ✅`);
   };
 
-  const categories = Array.from(
-    new Set(products.map((product) => product.category || "General"))
-  ).sort();
+  const categories = useMemo(() => {
+    return Array.from(
+      new Set(products.map((product) => product.category || "General"))
+    ).sort();
+  }, [products]);
 
-  const filteredProducts = sale.category
-    ? products.filter(
-        (product) => (product.category || "General") === sale.category
-      )
-    : [];
+  const filteredProducts = useMemo(() => {
+    return sale.category
+      ? products.filter(
+          (product) => (product.category || "General") === sale.category
+        )
+      : [];
+  }, [products, sale.category]);
 
-  const productsToShow = productFilterCategory
-    ? products.filter(
-        (product) => (product.category || "General") === productFilterCategory
-      )
-    : products;
+  const productsToShow = useMemo(() => {
+    return productFilterCategory
+      ? products.filter(
+          (product) =>
+            (product.category || "General") === productFilterCategory
+        )
+      : products;
+  }, [products, productFilterCategory]);
 
-  const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
-  const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+  const totalSales = useMemo(() => {
+    return sales.reduce((sum, s) => sum + s.total, 0);
+  }, [sales]);
 
-  const mpesaTotal = sales
-    .filter((s) => s.paymentMethod === "M-Pesa")
-    .reduce((sum, s) => sum + s.total, 0);
+  const totalProfit = useMemo(() => {
+    return sales.reduce((sum, s) => sum + s.profit, 0);
+  }, [sales]);
 
-  const cashTotal = sales
-    .filter((s) => s.paymentMethod === "Cash")
-    .reduce((sum, s) => sum + s.total, 0);
+  const mpesaTotal = useMemo(() => {
+    return sales
+      .filter((s) => s.paymentMethod === "M-Pesa")
+      .reduce((sum, s) => sum + s.total, 0);
+  }, [sales]);
 
-  const lowStockProducts = products.filter((p) => p.stock <= 5);
+  const cashTotal = useMemo(() => {
+    return sales
+      .filter((s) => s.paymentMethod === "Cash")
+      .reduce((sum, s) => sum + s.total, 0);
+  }, [sales]);
+
+  const lowStockProducts = useMemo(() => {
+    return products.filter((p) => p.stock <= 5);
+  }, [products]);
 
   const Dashboard = () => (
     <>
@@ -818,6 +836,7 @@ function App() {
               className={
                 stockUpdate.mode === "add" ? "pay active mpesa" : "pay"
               }
+              type="button"
               onClick={() => setStockUpdate({ ...stockUpdate, mode: "add" })}
             >
               Add Stock
@@ -825,6 +844,7 @@ function App() {
 
             <button
               className={stockUpdate.mode === "set" ? "pay active" : "pay"}
+              type="button"
               onClick={() => setStockUpdate({ ...stockUpdate, mode: "set" })}
             >
               Set Exact
@@ -833,6 +853,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder={
               stockUpdate.mode === "add"
                 ? "Quantity to add"
@@ -844,7 +865,7 @@ function App() {
             }
           />
 
-          <button className="primary-btn" onClick={updateStock}>
+          <button className="primary-btn" type="button" onClick={updateStock}>
             Update Stock
           </button>
         </div>
@@ -872,6 +893,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Stock"
             value={editProduct.stock}
             onChange={(e) =>
@@ -881,6 +903,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Buying price"
             value={editProduct.buyingPrice}
             onChange={(e) =>
@@ -890,6 +913,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Selling price"
             value={editProduct.sellingPrice}
             onChange={(e) =>
@@ -897,14 +921,22 @@ function App() {
             }
           />
 
-          <button className="primary-btn" onClick={saveEditedProduct}>
+          <button
+            className="primary-btn"
+            type="button"
+            onClick={saveEditedProduct}
+          >
             Save Product Changes
           </button>
 
           <br />
           <br />
 
-          <button className="secondary-btn" onClick={cancelEditProduct}>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={cancelEditProduct}
+          >
             Cancel Edit
           </button>
         </div>
@@ -936,14 +968,22 @@ function App() {
             Download a backup copy of your current products and sales.
           </p>
 
-          <button className="primary-btn" onClick={exportProductsCSV}>
+          <button
+            className="primary-btn"
+            type="button"
+            onClick={exportProductsCSV}
+          >
             Export Products CSV
           </button>
 
           <br />
           <br />
 
-          <button className="secondary-btn" onClick={exportSalesCSV}>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={exportSalesCSV}
+          >
             Export Sales CSV
           </button>
         </div>
@@ -955,6 +995,7 @@ function App() {
 
           <input
             placeholder="Product name"
+            autoComplete="off"
             value={newProduct.name}
             onChange={(e) =>
               setNewProduct({ ...newProduct, name: e.target.value })
@@ -963,6 +1004,7 @@ function App() {
 
           <input
             placeholder="Category e.g Accessories"
+            autoComplete="off"
             value={newProduct.category}
             onChange={(e) =>
               setNewProduct({ ...newProduct, category: e.target.value })
@@ -971,6 +1013,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Stock quantity"
             value={newProduct.stock}
             onChange={(e) =>
@@ -980,6 +1023,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Buying price"
             value={newProduct.buyingPrice}
             onChange={(e) =>
@@ -989,6 +1033,7 @@ function App() {
 
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Selling price"
             value={newProduct.sellingPrice}
             onChange={(e) =>
@@ -996,7 +1041,7 @@ function App() {
             }
           />
 
-          <button className="primary-btn" onClick={addProduct}>
+          <button className="primary-btn" type="button" onClick={addProduct}>
             Add Product
           </button>
         </div>
@@ -1026,9 +1071,13 @@ function App() {
 
             {isAdmin && (
               <div className="sale-actions">
-                <button onClick={() => startEditProduct(p)}>Edit</button>
+                <button type="button" onClick={() => startEditProduct(p)}>
+                  Edit
+                </button>
 
-                <button onClick={() => deleteProduct(p.name)}>Delete</button>
+                <button type="button" onClick={() => deleteProduct(p.name)}>
+                  Delete
+                </button>
               </div>
             )}
           </div>
@@ -1076,6 +1125,7 @@ function App() {
 
       <input
         type="number"
+        inputMode="numeric"
         placeholder="Quantity sold"
         value={sale.quantity}
         onChange={(e) => setSale({ ...sale, quantity: e.target.value })}
@@ -1083,6 +1133,7 @@ function App() {
 
       <input
         type="number"
+        inputMode="numeric"
         placeholder="Selling price"
         value={sale.sellingPrice}
         onChange={(e) => setSale({ ...sale, sellingPrice: e.target.value })}
@@ -1103,6 +1154,7 @@ function App() {
       <div className="payment-buttons">
         <button
           className={sale.paymentMethod === "Cash" ? "pay active" : "pay"}
+          type="button"
           onClick={() => setSale({ ...sale, paymentMethod: "Cash" })}
         >
           Cash
@@ -1112,13 +1164,14 @@ function App() {
           className={
             sale.paymentMethod === "M-Pesa" ? "pay active mpesa" : "pay"
           }
+          type="button"
           onClick={() => setSale({ ...sale, paymentMethod: "M-Pesa" })}
         >
           M-Pesa
         </button>
       </div>
 
-      <button className="primary-btn" onClick={addSale}>
+      <button className="primary-btn" type="button" onClick={addSale}>
         Complete Sale
       </button>
 
@@ -1149,7 +1202,7 @@ function App() {
                     <strong>KSh {s.total}</strong>
 
                     {isAdmin && (
-                      <button onClick={() => deleteSale(realIndex)}>
+                      <button type="button" onClick={() => deleteSale(realIndex)}>
                         Delete
                       </button>
                     )}
@@ -1221,16 +1274,17 @@ function App() {
             <input
               type="password"
               placeholder="Enter admin PIN"
+              autoComplete="off"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
             />
 
-            <button className="primary-btn" onClick={unlockAdmin}>
+            <button className="primary-btn" type="button" onClick={unlockAdmin}>
               Unlock Admin
             </button>
           </>
         ) : (
-          <button className="secondary-btn" onClick={lockAdmin}>
+          <button className="secondary-btn" type="button" onClick={lockAdmin}>
             Lock Admin
           </button>
         )}
@@ -1242,11 +1296,12 @@ function App() {
 
           <input
             placeholder="Worker name"
+            autoComplete="off"
             value={newWorker}
             onChange={(e) => setNewWorker(e.target.value)}
           />
 
-          <button className="primary-btn" onClick={addWorker}>
+          <button className="primary-btn" type="button" onClick={addWorker}>
             Add Worker
           </button>
 
@@ -1266,7 +1321,10 @@ function App() {
                 </div>
 
                 <div className="sale-actions">
-                  <button onClick={() => deleteWorker(worker.id, worker.name)}>
+                  <button
+                    type="button"
+                    onClick={() => deleteWorker(worker.id, worker.name)}
+                  >
                     Delete
                   </button>
                 </div>
@@ -1278,35 +1336,55 @@ function App() {
 
       {isAdmin && (
         <>
-          <button className="primary-btn" onClick={testSupabaseConnection}>
+          <button
+            className="primary-btn"
+            type="button"
+            onClick={testSupabaseConnection}
+          >
             Test Supabase Connection
           </button>
 
           <br />
           <br />
 
-          <button className="secondary-btn" onClick={syncProductsToSupabase}>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={syncProductsToSupabase}
+          >
             Sync Products to Supabase
           </button>
 
           <br />
           <br />
 
-          <button className="secondary-btn" onClick={loadProductsFromSupabase}>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={loadProductsFromSupabase}
+          >
             Load Products from Supabase
           </button>
 
           <br />
           <br />
 
-          <button className="secondary-btn" onClick={loadSalesFromSupabase}>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={loadSalesFromSupabase}
+          >
             Load Sales from Supabase
           </button>
 
           <br />
           <br />
 
-          <button className="secondary-btn" onClick={loadDataFromSupabase}>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={loadDataFromSupabase}
+          >
             Refresh All Data
           </button>
 
@@ -1327,7 +1405,9 @@ function App() {
   return (
     <div className="phone-shell">
       <div className="top-bar">
-        <button className="menu-btn">☰</button>
+        <button className="menu-btn" type="button">
+          ☰
+        </button>
 
         <h2>
           {activeTab === "dashboard" && SHOP_NAME}
@@ -1341,16 +1421,17 @@ function App() {
       </div>
 
       <main className="screen">
-        {activeTab === "dashboard" && <Dashboard />}
-        {activeTab === "products" && <Products />}
-        {activeTab === "sales" && <Sales />}
-        {activeTab === "reports" && <Reports />}
-        {activeTab === "more" && <More />}
+        {activeTab === "dashboard" && Dashboard()}
+        {activeTab === "products" && Products()}
+        {activeTab === "sales" && Sales()}
+        {activeTab === "reports" && Reports()}
+        {activeTab === "more" && More()}
       </main>
 
       <nav className="bottom-nav">
         <button
           className={activeTab === "dashboard" ? "active" : ""}
+          type="button"
           onClick={() => setActiveTab("dashboard")}
         >
           ⌂<span>Dashboard</span>
@@ -1358,17 +1439,23 @@ function App() {
 
         <button
           className={activeTab === "products" ? "active" : ""}
+          type="button"
           onClick={() => setActiveTab("products")}
         >
           ▣<span>Products</span>
         </button>
 
-        <button className="big-add" onClick={() => setActiveTab("sales")}>
+        <button
+          className="big-add"
+          type="button"
+          onClick={() => setActiveTab("sales")}
+        >
           +
         </button>
 
         <button
           className={activeTab === "reports" ? "active" : ""}
+          type="button"
           onClick={() => setActiveTab("reports")}
         >
           ◴<span>Reports</span>
@@ -1376,6 +1463,7 @@ function App() {
 
         <button
           className={activeTab === "more" ? "active" : ""}
+          type="button"
           onClick={() => setActiveTab("more")}
         >
           ☰<span>More</span>
