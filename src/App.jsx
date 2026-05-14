@@ -29,6 +29,7 @@ function App() {
   });
 
   const [sale, setSale] = useState({
+    category: "",
     product: "",
     quantity: "",
     sellingPrice: "",
@@ -308,8 +309,8 @@ function App() {
     const quantity = Number(sale.quantity);
     const sellingPrice = Number(sale.sellingPrice);
 
-    if (!quantity || !sellingPrice || !sale.soldBy) {
-      return alert("Fill product, quantity, selling price, and sold by");
+    if (!sale.category || !quantity || !sellingPrice || !sale.soldBy) {
+      return alert("Fill category, product, quantity, selling price, and sold by");
     }
 
     if (quantity > product.stock) {
@@ -350,6 +351,7 @@ function App() {
     }
 
     setSale({
+      category: "",
       product: "",
       quantity: "",
       sellingPrice: "",
@@ -586,6 +588,16 @@ function App() {
     setSales(data.map(formatSaleFromSupabase));
     alert(`${data.length} sales loaded from Supabase ✅`);
   };
+
+  const categories = Array.from(
+    new Set(products.map((product) => product.category || "General"))
+  ).sort();
+
+  const filteredProducts = sale.category
+    ? products.filter(
+        (product) => (product.category || "General") === sale.category
+      )
+    : [];
 
   const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
   const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
@@ -866,11 +878,32 @@ function App() {
       <h2>New Sale</h2>
 
       <select
+        value={sale.category}
+        onChange={(e) =>
+          setSale({
+            ...sale,
+            category: e.target.value,
+            product: "",
+          })
+        }
+      >
+        <option value="">Select category</option>
+        {categories.map((category) => (
+          <option key={category} value={category}>
+            {category}
+          </option>
+        ))}
+      </select>
+
+      <select
         value={sale.product}
+        disabled={!sale.category}
         onChange={(e) => setSale({ ...sale, product: e.target.value })}
       >
-        <option value="">Select product</option>
-        {products.map((p) => (
+        <option value="">
+          {sale.category ? "Select product" : "Choose category first"}
+        </option>
+        {filteredProducts.map((p) => (
           <option key={p.name} value={p.name}>
             {p.name} - Stock: {p.stock}
           </option>
